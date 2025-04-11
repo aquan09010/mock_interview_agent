@@ -7,7 +7,7 @@ import Link from "next/link";
 import DisplayTechIcons from "@/components/DisplayTechIcons";
 
 const InterviewCard = async ({
-  interviewId,
+  id,
   userId,
   role,
   type,
@@ -59,11 +59,7 @@ const InterviewCard = async ({
           <DisplayTechIcons techStack={techstack} />
           <Button className="btb-primary">
             <Link
-              href={
-                feedback
-                  ? `/interview/${interviewId}/feedback`
-                  : `/interview/${interviewId}`
-              }
+              href={feedback ? `/interview/${id}/feedback` : `/interview/${id}`}
             >
               {feedback ? "Check feedback" : "View Interview"}
             </Link>
