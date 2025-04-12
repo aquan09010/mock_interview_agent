@@ -1,3 +1,5 @@
+"use server";
+
 import { db } from "@/firebase/admin";
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
@@ -41,7 +43,8 @@ export async function getInterviewById(id: string): Promise<Interview | null> {
   return interview.data() as Interview | null;
 }
 export async function createFeedback(params: CreateFeedbackParams) {
-  const { interviewId, userId, transcript } = params;
+  const { interviewId, userId, transcript, feedbackId } = params;
+
   try {
     const formattedTranscript = transcript
       .map(
@@ -49,15 +52,8 @@ export async function createFeedback(params: CreateFeedbackParams) {
           `- ${sentence.role}: ${sentence.content}\n`,
       )
       .join("");
-    const {
-      object: {
-        totalScore,
-        categoryScores,
-        strengths,
-        areasForImprovement,
-        finalAssessment,
-      },
-    } = await generateObject({
+
+    const { object } = await generateObject({
       model: google("gemini-2.0-flash-001", {
         structuredOutputs: false,
       }),
@@ -78,25 +74,31 @@ export async function createFeedback(params: CreateFeedbackParams) {
         "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
     });
 
-    const feedback = await db.collection("feedback").add({
-      interviewId,
-      userId,
-      totalScore,
-      categoryScores,
-      strengths,
-      areasForImprovement,
-      finalAssessment,
+    const feedback = {
+      interviewId: interviewId,
+      userId: userId,
+      totalScore: object.totalScore,
+      categoryScores: object.categoryScores,
+      strengths: object.strengths,
+      areasForImprovement: object.areasForImprovement,
+      finalAssessment: object.finalAssessment,
       createdAt: new Date().toISOString(),
-    });
-    return {
-      success: true,
-      feedbackId: feedback.id,
     };
-  } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-    };
+
+    let feedbackRef;
+
+    if (feedbackId) {
+      feedbackRef = db.collection("feedback").doc(feedbackId);
+    } else {
+      feedbackRef = db.collection("feedback").doc();
+    }
+
+    await feedbackRef.set(feedback);
+
+    return { success: true, feedbackId: feedbackRef.id };
+  } catch (error) {
+    console.error("Error saving feedback:", error);
+    return { success: false };
   }
 }
 
